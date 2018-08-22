@@ -16,10 +16,10 @@ use Psr\Log\LoggerInterface;
  * Class HttpClient
  * @package App\Client
  *
- * @method get(string|UriInterface $uri, string|StreamInterface $body = '', array $headers = [])
- * @method post(string|UriInterface $uri, string|StreamInterface $body = '', array $headers = [])
- * @method delete(string|UriInterface $uri, string|StreamInterface $body = '', array $headers = [])
- * @method update(string|UriInterface $uri, string|StreamInterface $body = '', array $headers = [])
+ * @method ResponseInterface get(string | UriInterface $uri, string | StreamInterface $body = '', array $headers = [])
+ * @method ResponseInterface post(string | UriInterface $uri, string | StreamInterface $body = '', array $headers = [])
+ * @method ResponseInterface delete(string | UriInterface $uri, string | StreamInterface $body = '', array $headers = [])
+ * @method ResponseInterface update(string | UriInterface $uri, string | StreamInterface $body = '', array $headers = [])
  */
 class HttpClient
 {
@@ -43,9 +43,10 @@ class HttpClient
     /**
      * @param $name
      * @param $arguments
+     * @return ResponseInterface
      * @throws \Exception
      */
-    public function __call($name, $arguments)
+    public function __call($name, $arguments): ResponseInterface
     {
         $name = strtoupper($name);
         if (!in_array($name, self::ACCEPTED_METHODS)) {
@@ -69,7 +70,7 @@ class HttpClient
         foreach ($headers as $name => $values) {
             $request = $request->withHeader($name, $values);
         }
-        $this->execute($request);
+        return $this->execute($request);
     }
 
     /**
@@ -79,8 +80,14 @@ class HttpClient
      */
     public function execute(RequestInterface $request): ResponseInterface
     {
-        $uri = $this->host . (string)$request->getUri();
-        $curl = curl_init($uri);
+        $uri = $request->getUri();
+        if ($this->host) {
+            $uri = $uri->withHost($this->host);
+        }
+        if ($this->port) {
+            $uri = $uri->withPort($this->port);
+        }
+        $curl = curl_init((string)$uri);
         curl_setopt_array($curl, [
             CURLOPT_CUSTOMREQUEST => $request->getMethod(),
             CURLOPT_POSTFIELDS => $request->getBody()->getContents(),
